@@ -5,6 +5,7 @@ const { v4: uuid } = require("uuid");
 const app = express();
 
 app.use(express.json());
+app.use("/repositories/:id", checkRepoByID);
 
 const repositories = [];
 
@@ -29,52 +30,27 @@ app.post("/repositories", (request, response) => {
 });
 
 app.put("/repositories/:id", (request, response) => {
-  const { id } = request.params;
+  let { repositoryIndex: index } = request;
   const { likes, ...updatedRepository } = request.body;
 
-  repositoryIndex = repositories.findIndex(
-    (repository) => repository.id === id
-  );
+  const repo = { ...repositories[index], ...updatedRepository };
 
-  if (repositoryIndex < 0) {
-    return response.status(404).json({ error: "Repository not found" });
-  }
+  repositories[index] = repo;
 
-  const repository = { ...repositories[repositoryIndex], ...updatedRepository };
-
-  repositories[repositoryIndex] = repository;
-
-  return response.json(repository);
+  return response.json(repo);
 });
 
 app.delete("/repositories/:id", (request, response) => {
-  const { id } = request.params;
+  const { repositoryIndex: index } = request;
 
-  repositoryIndex = repositories.findIndex(
-    (repository) => repository.id === id
-  );
-
-  if (repositoryIndex < 0) {
-    return response.status(404).json({ error: "Repository not found" });
-  }
-
-  repositories.splice(repositoryIndex, 1);
+  repositories.splice(index, 1);
 
   return response.status(204).send();
 });
 
 app.post("/repositories/:id/like", (request, response) => {
-  const { id } = request.params;
-
-  repositoryIndex = repositories.findIndex(
-    (repository) => repository.id === id
-  );
-
-  if (repositoryIndex < 0) {
-    return response.status(404).json({ error: "Repository not found" });
-  }
-
-  const likes = ++repositories[repositoryIndex].likes;
+  const { repositoryIndex: index } = request;
+  const likes = ++repositories[index].likes;
 
   return response.json({
     likes,
@@ -82,3 +58,21 @@ app.post("/repositories/:id/like", (request, response) => {
 });
 
 module.exports = app;
+
+/* Middlewares */
+
+function checkRepoByID(request, response, next) {
+  const { id } = request.params;
+
+  repositoryIndex = repositories.findIndex(
+    (repository) => repository.id === id
+  );
+
+  if (repositoryIndex < 0) {
+    return response.status(404).json({ error: "Repository not found" });
+  }
+
+  request.repositoryIndex = repositoryIndex;
+
+  next();
+}
